@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Lower-Body Musculoskeletal Explorer</title>
+<style>
+  :root{
+    --bg:#0d1014; --panel:#151a20; --panel-2:#1b222a; --line:#2a323c;
+    --ink:#d7dde4; --ink-dim:#8b96a3; --ink-faint:#5d6772;
+    --accent:#39c5cf; --accent-dim:#1f6f74;
+    --warn:#f2c14e; --bone:#e8e2d4;
+    --mono:"SF Mono",ui-monospace,"Cascadia Code","Roboto Mono",Menlo,Consolas,monospace;
+    --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden;}
+  #app{display:grid;grid-template-columns:248px 1fr 268px;grid-template-rows:100%;height:100%;}
+  .panel{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:0;}
+  #right{border-right:none;border-left:1px solid var(--line);}
+  #viewport{position:relative;min-width:0;background:radial-gradient(ellipse at 50% 30%,#161c24 0%,#0b0e12 80%);}
+  canvas{display:block;width:100%;height:100%;}
+  .hd{position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--line);
+      padding:11px 13px 9px;z-index:2;}
+  .hd h1{margin:0;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600;}
+  .hd .sub{margin:3px 0 0;font-size:10.5px;color:var(--ink-faint);font-family:var(--mono);letter-spacing:.02em;}
+  .sec{padding:12px 13px;border-bottom:1px solid var(--line);}
+  .sec h2{margin:0 0 9px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim);font-weight:600;}
+  .row{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12px;cursor:pointer;user-select:none;}
+  .row:hover{color:#fff;}
+  .sw{width:11px;height:11px;border-radius:2px;flex:0 0 auto;border:1px solid rgba(255,255,255,.15);}
+  .chk{margin:0;accent-color:var(--accent);width:13px;height:13px;flex:0 0 auto;}
+  .lbl{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .muscle-row .lbl{cursor:pointer;}
+  .muscle-row.sel{background:var(--panel-2);margin:0 -13px;padding-left:13px;padding-right:13px;}
+  .ctl{margin:9px 0;}
+  .ctl label{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-dim);margin-bottom:3px;font-family:var(--mono);}
+  .ctl label .v{color:var(--accent);}
+  input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:3px;background:var(--line);border-radius:2px;outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid #0d1014;}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid #0d1014;}
+  .btn{display:block;width:100%;text-align:left;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+       font-size:12px;padding:7px 10px;border-radius:4px;margin:5px 0;cursor:pointer;font-family:var(--sans);transition:.12s;}
+  .btn:hover{border-color:var(--accent-dim);color:#fff;}
+  .btn small{display:block;color:var(--ink-faint);font-size:10px;margin-top:2px;font-family:var(--mono);}
+  .mv{display:inline-block;font-size:11px;padding:5px 9px;margin:3px 4px 3px 0;border:1px solid var(--line);
+      border-radius:14px;cursor:pointer;color:var(--ink-dim);transition:.12s;background:var(--panel-2);}
+  .mv:hover{border-color:var(--accent);color:#fff;}
+  .mv.active{background:var(--accent-dim);border-color:var(--accent);color:#fff;}
+  .info .name{font-size:14px;font-weight:600;color:#fff;margin:0 0 2px;}
+  .info .grp{font-size:10px;font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase;margin-bottom:9px;}
+  .info dl{margin:0;font-size:11.5px;line-height:1.5;}
+  .info dt{color:var(--ink-faint);font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin-top:8px;font-family:var(--mono);}
+  .info dd{margin:1px 0 0;color:var(--ink);}
+  .state{font-family:var(--mono);font-size:11px;padding:4px 7px;border-radius:3px;display:inline-block;margin-top:3px;}
+  .clinical{margin-top:10px;padding:8px 9px;background:rgba(242,193,78,.07);border-left:2px solid var(--warn);
+            border-radius:0 3px 3px 0;font-size:11px;line-height:1.45;color:#e9d9ac;}
+  .clinical b{color:var(--warn);}
+  .empty{color:var(--ink-faint);font-size:11.5px;line-height:1.5;font-style:italic;}
+  .readout{font-family:var(--mono);font-size:10.5px;color:var(--ink-dim);line-height:1.7;}
+  .readout span{color:var(--accent);float:right;}
+  .foot{font-size:10px;color:var(--ink-faint);line-height:1.45;padding:11px 13px;border-top:1px solid var(--line);}
+  .hint{position:absolute;left:12px;bottom:10px;font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);
+        background:rgba(13,16,20,.7);padding:6px 9px;border-radius:4px;border:1px solid var(--line);pointer-events:none;line-height:1.6;}
+  #tip{position:absolute;pointer-events:none;background:#0d1014;border:1px solid var(--accent-dim);color:#fff;
+       font-size:11px;padding:3px 7px;border-radius:3px;font-family:var(--mono);display:none;z-index:5;white-space:nowrap;}
+  .leg{position:absolute;right:12px;top:10px;background:rgba(13,16,20,.72);border:1px solid var(--line);
+       border-radius:4px;padding:8px 10px;font-size:10px;font-family:var(--mono);color:var(--ink-dim);line-height:1.7;pointer-events:none;}
+  .leg b{color:var(--ink);font-weight:600;}
+  .bar{display:inline-block;width:42px;height:7px;border-radius:2px;vertical-align:middle;margin-left:6px;
+       background:linear-gradient(90deg,#3a6ea5,#7a5cc7,#e0633f,#f2c14e);}
+  .topbtns{display:flex;gap:6px;margin-bottom:8px;}
+  .topbtns .btn{margin:0;text-align:center;padding:6px;}
+  .mirror{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ink-dim);margin-top:4px;cursor:pointer;}
+  /* mobile */
+  #menuToggle{display:none;}
+  @media(max-width:880px){
+    #app{grid-template-columns:1fr;grid-template-rows:1fr;}
+    .panel{position:absolute;top:0;bottom:0;width:84%;max-width:320px;z-index:20;transition:transform .22s;}
+    #left{transform:translateX(-100%);} #left.open{transform:translateX(0);}
+    #right{right:0;border-left:1px solid var(--line);transform:translateX(100%);} #right.open{transform:translateX(0);}
+    #menuToggle{display:flex;position:absolute;top:10px;left:10px;z-index:21;gap:8px;}
+    #menuToggle button{background:var(--panel);border:1px solid var(--line);color:var(--ink);font-size:11px;
+        padding:7px 11px;border-radius:5px;font-family:var(--mono);}
+    .leg{display:none;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- LEFT -->
+  <aside class="panel" id="left">
+    <div class="hd">
+      <h1>Musculoskeletal Explorer</h1>
+      <div class="sub">lumbar · pelvis · hip · leg</div>
+    </div>
+
+    <div class="sec">
+      <h2>Movement Explorer</h2>
+      <div id="moves"></div>
+      <div class="empty" id="moveHint" style="margin-top:6px;">Tap a movement: the muscles that drive it light up and the joint animates.</div>
+    </div>
+
+    <div class="sec">
+      <h2>Poses</h2>
+      <div id="poses"></div>
+    </div>
+
+    <div class="sec">
+      <h2>Layers</h2>
+      <label class="row"><input type="checkbox" class="chk" id="tglBones" checked><span class="lbl">Skeleton</span></label>
+      <label class="row"><input type="checkbox" class="chk" id="tglNerve" checked><span class="lbl"><span class="sw" style="background:#f2c14e"></span>Sciatic nerve</span></label>
+      <label class="row"><input type="checkbox" class="chk" id="tglActiv" checked><span class="lbl">Activation shading</span></label>
+      <div class="ctl" style="margin-top:8px;">
+        <label>muscle opacity <span class="v" id="opVal">0.78</span></label>
+        <input type="range" id="opacity" min="0.1" max="1" step="0.01" value="0.78">
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2>Muscles <span style="color:var(--ink-faint);font-weight:400;text-transform:none;letter-spacing:0;">(click to inspect)</span></h2>
+      <div id="muscleList"></div>
+    </div>
+    <div class="foot">
+      Educational kinematic model — geometry is simplified and approximate, not anatomically exact. It is not a diagnostic tool. Your physical therapist and physician are the authority on your specific case.
+    </div>
+  </aside>
+
+  <!-- CENTER -->
+  <main id="viewport">
+    <div id="menuToggle">
+      <button id="mLeft">☰ Controls</button>
+      <button id="mRight">Info ▸</button>
+    </div>
+    <div id="tip"></div>
+    <div class="leg">
+      <div><b>Activation</b></div>
+      <div>stretched → contracted<span class="bar"></span></div>
+      <div style="margin-top:4px;"><b>drag</b> rotate &nbsp; <b>scroll</b> zoom</div>
+      <div><b>shift-drag</b> pan</div>
+    </div>
+    <div class="hint" id="hint">click a muscle to inspect · double-click empty space to reset view</div>
+  </main>
+
+  <!-- RIGHT -->
+  <aside class="panel" id="right">
+    <div class="hd">
+      <h1>Joint Controls</h1>
+      <div class="sub" id="poseName">neutral stance</div>
+    </div>
+    <div class="sec" id="jointCtls"></div>
+    <div class="sec">
+      <h2>Joint Angles</h2>
+      <div class="readout" id="angles"></div>
+    </div>
+    <div class="sec info" id="infoPanel">
+      <div class="empty">No muscle selected. Click a muscle in the 3D view or the list on the left to see its action, attachments, and how it relates to sciatic / low-back pain.</div>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const T = THREE;
+
+/* ---------------- joint state (degrees) ---------------- */
+const J = {
+  lumbarFlex:0, lumbarLat:0,
+  hipFlex:0, hipAbduct:0, hipRot:0,
+  kneeFlex:0, ankle:0
+};
+// realistic-ish range of motion limits
+const LIM = {
+  lumbarFlex:[-25,70], lumbarLat:[-35,35],
+  hipFlex:[-20,120], hipAbduct:[-25,45], hipRot:[-40,45],
+  kneeFlex:[0,140], ankle:[-25,45]
+};
+let mirror = true;        // apply leg joints to both legs
+let activeLeg = 'L';      // leg the single-leg presets use
+
+/* ---------------- group pivots (world, neutral) ---------------- */
+const PV = {
+  pelvis:[0,0.97,-0.02], spine:[0,0.99,-0.02],
+  hipL:[0.10,0.90,0], hipR:[-0.10,0.90,0],
+  kneeL:[0.105,0.49,0.012], kneeR:[-0.105,0.49,0.012],
+  ankleL:[0.11,0.075,0], ankleR:[-0.11,0.075,0]
+};
+const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+
+/* ---------------- scene ---------------- */
+const vp = document.getElementById('viewport');
+const scene = new T.Scene();
+const camera = new T.PerspectiveCamera(42, 1, 0.01, 100);
+const renderer = new T.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputEncoding = T.sRGBEncoding;
+vp.appendChild(renderer.domElement);
+
+scene.add(new T.HemisphereLight(0xbcd2e6, 0x202024, 0.85));
+const key = new T.DirectionalLight(0xffffff,0.85); key.position.set(2,4,3); scene.add(key);
+const fill = new T.DirectionalLight(0x88aacc,0.35); fill.position.set(-3,1,-2); scene.add(fill);
+const rim = new T.DirectionalLight(0xffffff,0.4); rim.position.set(0,2,-4); scene.add(rim);
+
+// ground grid for orientation
+const grid = new T.GridHelper(3,30,0x2a323c,0x1b222a); grid.position.y=0; scene.add(grid);
+
+/* orbit target + custom controls */
+const target = new T.Vector3(0,0.85,0);
+let radius=2.3, theta=0.5, phi=1.32;
+function applyCam(){
+  camera.position.set(
+    target.x + radius*Math.sin(phi)*Math.sin(theta),
+    target.y + radius*Math.cos(phi),
+    target.z + radius*Math.sin(phi)*Math.cos(theta)
+  );
+  camera.lookAt(target);
+}
+(function controls(){
+  const el=renderer.domElement; let mode=0, px=0, py=0;
+  el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);mode=(e.button===2||e.shiftKey)?2:1;px=e.clientX;py=e.clientY;});
+  el.addEventListener('pointermove',e=>{
+    if(!mode)return; const dx=e.clientX-px, dy=e.clientY-py; px=e.clientX; py=e.clientY;
+    if(mode===1){theta-=dx*0.008; phi=Math.max(0.25,Math.min(2.75,phi-dy*0.008));}
+    else{ const pan=radius*0.0016; const right=new T.Vector3().subVectors(camera.position,target).cross(camera.up).normalize();
+      target.addScaledVector(right,-dx*pan); target.y+=dy*pan; }
+    applyCam();
+  });
+  el.addEventListener('pointerup',e=>{mode=0;});
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+  el.addEventListener('wheel',e=>{e.preventDefault();radius=Math.max(0.6,Math.min(6,radius*(1+Math.sign(e.deltaY)*0.09)));applyCam();},{passive:false});
+  // touch pinch
+  let pinch=0;
+  el.addEventListener('touchstart',e=>{if(e.touches.length===2)pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);});
+  el.addEventListener('touchmove',e=>{if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(pinch)radius=Math.max(0.6,Math.min(6,radius*(pinch/d)));pinch=d;applyCam();}},{passive:true});
+  el.addEventListener('dblclick',()=>{radius=2.3;theta=0.5;phi=1.32;target.set(0,0.85,0);applyCam();});
+})();
+
+/* ---------------- kinematic skeleton ---------------- */
+const root = new T.Object3D(); scene.add(root);
+function grp(parent,name){const g=new T.Object3D();g.name=name;parent.add(g);return g;}
+
+const gPelvis = grp(root,'pelvis');           gPelvis.position.fromArray(PV.pelvis);
+const gSpine  = grp(gPelvis,'spine');         gSpine.position.fromArray(sub(PV.spine,PV.pelvis));
+const gHip={}, gKnee={}, gAnkle={};
+['L','R'].forEach(s=>{
+  gHip[s]=grp(gPelvis,'hip'+s);   gHip[s].position.fromArray(sub(PV['hip'+s],PV.pelvis));
+  gKnee[s]=grp(gHip[s],'knee'+s); gKnee[s].position.fromArray(sub(PV['knee'+s],PV['hip'+s]));
+  gAnkle[s]=grp(gKnee[s],'ankle'+s); gAnkle[s].position.fromArray(sub(PV['ankle'+s],PV['knee'+s]));
+});
+const groupMap={pelvis:gPelvis,spine:gSpine,hipL:gHip.L,hipR:gHip.R,kneeL:gKnee.L,kneeR:gKnee.R,ankleL:gAnkle.L,ankleR:gAnkle.R};
+
+/* bone material + helpers */
+const boneMat = new T.MeshStandardMaterial({color:0xe8e2d4,roughness:0.72,metalness:0.04});
+const boneMeshes=[];
+const _up=new T.Vector3(0,1,0), _q=new T.Quaternion(), _dir=new T.Vector3();
+function boneSeg(group,worldA,worldB,r0,r1){
+  const a=new T.Vector3().fromArray(worldA), b=new T.Vector3().fromArray(worldB);
+  const piv=new T.Vector3().fromArray(PV[group.name]||[0,0,0]);
+  const len=a.distanceTo(b);
+  const geo=new T.CylinderGeometry(r1||r0,r0,len,12);
+  const m=new T.Mesh(geo,boneMat);
+  const mid=a.clone().add(b).multiplyScalar(0.5).sub(piv);
+  m.position.copy(mid);
+  _dir.subVectors(b,a).normalize(); _q.setFromUnitVectors(_up,_dir); m.quaternion.copy(_q);
+  group.add(m); boneMeshes.push(m); return m;
+}
+function boneBlob(group,world,sx,sy,sz){
+  const piv=PV[group.name]||[0,0,0];
+  const geo=new T.SphereGeometry(1,16,12);
+  const m=new T.Mesh(geo,boneMat);
+  m.position.set(world[0]-piv[0],world[1]-piv[1],world[2]-piv[2]);
+  m.scale.set(sx,sy,sz); group.add(m); boneMeshes.push(m); return m;
+}
+
+/* --- skeleton geometry (approximate, recognizable) --- */
+// pelvis: sacrum + two ilia
+boneBlob(gPelvis,[0,0.96,-0.05],0.045,0.07,0.035);          // sacrum
+boneBlob(gPelvis,[0.085,0.965,-0.005],0.05,0.075,0.055);     // L ilium
+boneBlob(gPelvis,[-0.085,0.965,-0.005],0.05,0.075,0.055);    // R ilium
+boneBlob(gPelvis,[0.06,0.88,0.03],0.035,0.03,0.02);          // L pubis area
+boneBlob(gPelvis,[-0.06,0.88,0.03],0.035,0.03,0.02);
+
+// lumbar + thoracic spine (in spine group)
+for(let i=0;i<5;i++){ const y=1.02+i*0.066; boneBlob(gSpine,[0,y,-0.05],0.028,0.026,0.026); } // lumbar L5..L1
+for(let i=0;i<6;i++){ const y=1.35+i*0.03; boneBlob(gSpine,[0,y,-0.05-i*0.004],0.024,0.017,0.024);} // thoracic stub
+// simplified ribcage
+const ribMat=new T.MeshStandardMaterial({color:0xe8e2d4,roughness:0.75,metalness:0.03});
+for(let i=0;i<5;i++){ const y=1.40+i*0.035; const r=0.085-i*0.004;
+  const tg=new T.TorusGeometry(r,0.006,6,18,Math.PI*1.1);
+  [-1,1].forEach(sgn=>{ const m=new T.Mesh(tg,ribMat); m.rotation.x=Math.PI/2; m.rotation.z=sgn>0?-0.55:Math.PI+0.55;
+    m.position.set(0,y-PV.spine[1],-0.03); m.scale.z=0.7; gSpine.add(m); boneMeshes.push(m); }); }
+boneBlob(gSpine,[0,1.62,-0.01],0.046,0.055,0.05);  // skull
+boneBlob(gSpine,[0,1.55,-0.02],0.02,0.04,0.02);    // cervical stub
+
+['L','R'].forEach(s=>{
+  const sgn=s==='L'?1:-1;
+  boneSeg(gHip[s], PV['hip'+s], PV['knee'+s], 0.022,0.018);   // femur
+  boneBlob(gHip[s],[PV['hip'+s][0],PV['hip'+s][1],PV['hip'+s][2]],0.028,0.028,0.028); // femoral head
+  boneSeg(gKnee[s], PV['knee'+s], PV['ankle'+s], 0.018,0.015); // tibia
+  boneSeg(gKnee[s], [PV['knee'+s][0]+0.02*sgn,PV['knee'+s][1]-0.01,PV['knee'+s][2]-0.01],
+                    [PV['ankle'+s][0]+0.02*sgn,PV['ankle'+s][1],PV['ankle'+s][2]-0.005],0.008,0.006); // fibula
+  boneBlob(gKnee[s],[PV['knee'+s][0],PV['knee'+s][1]+0.01,PV['knee'+s][2]+0.03],0.018,0.02,0.012); // patella
+  // foot
+  const piv=PV['ankle'+s];
+  const fg=new T.BoxGeometry(0.055,0.03,0.18); const fm=new T.Mesh(fg,boneMat);
+  fm.position.set(0,-0.04,0.06); gAnkle[s].add(fm); boneMeshes.push(fm);
+  boneBlob(gAnkle[s],[piv[0],piv[1],piv[2]],0.02,0.02,0.02); // talus/calcaneus
+});
+
+/* ---------------- muscle definitions ---------------- */
+// world-neutral anchor positions; converted to local at build.
+// each: id,name,group(color group),color,actions[],O(origin),I(insertion),bulge,bulgeDir?,clinical?
+// O/I = {g:groupKey, p:[x,y,z]world}.  side-able muscles use 'L' template, mirrored to 'R'.
+const G = groupMap;
+function W(gKey,p){return {g:gKey,p};}
+
+const MDEF=[
+  {id:'iliopsoas',name:'Iliopsoas',cgrp:'Hip flexor',color:0xd98a3d,
+   actions:['Hip flexion'],
+   O:W('spine',[0.045,1.10,0.0]), I:W('hipL',[0.075,0.83,0.03]), bulge:0.02,
+   desc:'Psoas major + iliacus. From lumbar spine & iliac fossa to the lesser trochanter.',
+   clinical:'A tight iliopsoas tilts the pelvis anteriorly and increases lumbar lordosis, which can aggravate low-back load. Often a focus of stretching/relaxation in PT for lumbar pain.'},
+  {id:'rectusfem',name:'Rectus femoris',cgrp:'Quadriceps',color:0xe0633f,
+   actions:['Hip flexion','Knee extension'],
+   O:W('pelvis',[0.095,0.885,0.06]), I:W('kneeL',[0.108,0.46,0.075]), via:W('hipL',[0.10,0.66,0.05]), bulge:0.018,
+   desc:'The biarticular quad: crosses both hip and knee. AIIS of pelvis → patella → tibial tuberosity.',
+   clinical:'Because it spans two joints, hip position changes its effective length — relevant when a stretch "pulls" differently with the hip flexed vs extended.'},
+  {id:'vastus',name:'Vastus group',cgrp:'Quadriceps',color:0xe07a4f,
+   actions:['Knee extension'],
+   O:W('hipL',[0.10,0.66,0.05]), I:W('kneeL',[0.108,0.46,0.078]), bulge:0.02,
+   desc:'Vastus lateralis/medialis/intermedius. Femoral shaft → patella → tibial tuberosity.',
+   clinical:'Quad strength supports the knee and offloads compensatory strain elsewhere in the chain during rehab.'},
+  {id:'glutemax',name:'Gluteus maximus',cgrp:'Gluteal',color:0xb5544e,
+   actions:['Hip extension','Hip external rotation'],
+   O:W('pelvis',[0.03,0.975,-0.09]), I:W('hipL',[0.095,0.74,-0.05]), bulge:0.028, bulgeDir:[0.4,0,-1],
+   desc:'Largest hip extensor. Sacrum/posterior ilium → gluteal tuberosity & IT band.',
+   clinical:'Glute weakness is common with low-back/sciatic issues; strengthening it is a frequent PT goal to restore hip extension without over-using the lumbar spine.'},
+  {id:'glutemed',name:'Gluteus medius',cgrp:'Gluteal',color:0xc46a5e,
+   actions:['Hip abduction','Pelvic stabilization'],
+   O:W('pelvis',[0.10,1.00,-0.02]), I:W('hipL',[0.125,0.89,-0.015]), bulge:0.018,
+   desc:'Lateral ilium → greater trochanter. Keeps the pelvis level during single-leg stance.',
+   clinical:'Weakness shows up as a hip drop when standing on one leg (Trendelenburg) and is often retrained in lower-limb and back rehab.'},
+  {id:'piriformis',name:'Piriformis',cgrp:'Deep rotator',color:0xc9447a,
+   actions:['Hip external rotation','Abduction (flexed hip)'],
+   O:W('pelvis',[0.03,0.95,-0.07]), I:W('hipL',[0.125,0.90,-0.02]), bulge:0.014,
+   desc:'Anterior sacrum → greater trochanter. A deep external rotator of the hip.',
+   clinical:'KEY for sciatica: the sciatic nerve passes directly beneath (and sometimes through) the piriformis. A tight or spasming piriformis can compress the nerve — "piriformis syndrome" — producing buttock and leg pain that mimics disc-related sciatica.'},
+  {id:'hamstrings',name:'Hamstrings',cgrp:'Hamstring',color:0x7a5cc7,
+   actions:['Hip extension','Knee flexion'],
+   O:W('pelvis',[0.07,0.865,-0.06]), I:W('kneeL',[0.105,0.45,-0.05]), bulge:0.022, bulgeDir:[0,0,-1],
+   desc:'Biceps femoris, semitendinosus, semimembranosus. Ischial tuberosity → tibia/fibula. Spans hip and knee.',
+   clinical:'The sciatic nerve runs down the back of the thigh alongside the hamstrings. The straight-leg-raise test (hip flexed, knee straight) tensions the nerve — reproduced leg pain is a classic sign of nerve-root irritation. Try the "Straight-leg raise" pose.'},
+  {id:'adductors',name:'Adductors',cgrp:'Adductor',color:0x4a8db5,
+   actions:['Hip adduction'],
+   O:W('pelvis',[0.03,0.86,0.015]), I:W('hipL',[0.075,0.69,0.005]), bulge:0.02,
+   desc:'Adductor longus/brevis/magnus. Pubis → medial femur.',
+   clinical:'Adductor tightness is targeted in stretches such as the piriformis/figure-4 family and affects hip mechanics in gait.'},
+  {id:'tfl',name:'Tensor fasciae latae',cgrp:'Hip flexor',color:0xd99a55,
+   actions:['Hip flexion','Hip abduction'],
+   O:W('pelvis',[0.115,1.00,0.04]), I:W('hipL',[0.13,0.56,0.0]), bulge:0.012,
+   desc:'Anterior iliac crest → IT band (lateral knee).',
+   clinical:'Tightness here loads the IT band and lateral knee/hip; commonly stretched and foam-rolled in lower-limb rehab.'},
+  {id:'gastroc',name:'Gastrocnemius',cgrp:'Calf',color:0xc7a23d,
+   actions:['Ankle plantarflexion','Knee flexion'],
+   O:W('hipL',[0.10,0.51,-0.04]), I:W('ankleL',[0.11,0.05,-0.045]), bulge:0.02, bulgeDir:[0,0,-1],
+   desc:'Crosses knee and ankle: femoral condyles → calcaneus (via Achilles).',
+   clinical:'Calf tightness limits dorsiflexion and changes how load travels up the leg; included to show a second biarticular actuator.'},
+  {id:'tibant',name:'Tibialis anterior',cgrp:'Calf',color:0x5fae6b,
+   actions:['Ankle dorsiflexion'],
+   O:W('kneeL',[0.105,0.42,0.045]), I:W('ankleL',[0.10,0.045,0.10]), bulge:0.01,
+   desc:'Lateral tibia → medial foot. Lifts the foot in swing phase.',
+   clinical:'Weakness (foot drop) can accompany L4–L5 nerve-root compression — one reason clinicians test it.'},
+  // trunk (single midline)
+  {id:'erector',name:'Erector spinae',cgrp:'Spinal',color:0xc77f3d,single:true,
+   actions:['Spinal extension'],
+   O:W('pelvis',[0.035,0.97,-0.07]), I:W('spine',[0.035,1.40,-0.07]), bulge:0.016, bulgeDir:[0,0,-1],
+   mirrorX:true,
+   desc:'Paired columns along the spine: sacrum/ilium → ribs & vertebrae. The main back extensors.',
+   clinical:'These guard and extend the lumbar spine; they often tighten or spasm with disc irritation. Watch them lengthen as you increase trunk flexion — sustained loaded flexion is what many disc protocols try to limit early on.'},
+  {id:'ql',name:'Quadratus lumborum',cgrp:'Spinal',color:0xb06a3d,single:true,
+   actions:['Lateral flexion','Spinal extension assist'],
+   O:W('pelvis',[0.06,1.00,-0.045]), I:W('spine',[0.05,1.30,-0.045]), bulge:0.012,
+   mirrorX:true,
+   desc:'Iliac crest → 12th rib & lumbar transverse processes.',
+   clinical:'A frequent source of one-sided low-back ache; drive "Trunk lateral bend" to see it shorten on the bending side.'},
+  {id:'rectusabd',name:'Rectus abdominis',cgrp:'Abdominal',color:0x5a9bd4,single:true,
+   actions:['Trunk flexion'],
+   O:W('pelvis',[0.0,0.875,0.06]), I:W('spine',[0.0,1.42,0.055]), bulge:0.018, bulgeDir:[0,0,1],
+   desc:'Pubis → sternum/ribs. The antagonist to the erector spinae.',
+   clinical:'Core/trunk control is central to most low-back programs — this is the front half of that system.'},
+];
+
+/* build muscle meshes */
+const muscleMat=()=>new T.MeshStandardMaterial({transparent:true,opacity:0.78,roughness:0.5,metalness:0.0,
+  emissive:0x000000,depthWrite:false});
+const muscles=[]; // {id,name,...,mesh,oW,iW,viaW,restLen,side,visible}
+function anchorWorld(g,p,side,mirrorX){
+  // returns an Object3D attached to group so it moves with kinematics
+  let gk=g; if(side==='R') gk=g.replace(/L$/,'R').replace('hipL','hipR'); // group keys end with L/R for limbs
+  // remap limb group keys
+  if(side==='R'){ if(gk==='hipL')gk='hipR'; if(gk==='kneeL')gk='kneeR'; if(gk==='ankleL')gk='ankleR'; }
+  const grp=groupMap[gk]||groupMap[g]; const piv=PV[gk]||PV[g]||[0,0,0];
+  let x=p[0]; if(side==='R'||mirrorX) x=-x; // mirror across midline
+  const o=new T.Object3D(); o.position.set(x-piv[0],p[1]-piv[1],p[2]-piv[2]); grp.add(o); return o;
+}
+function buildMuscle(def,side){
+  const oW=anchorWorld(def.O.g,def.O.p,side);
+  const iW=anchorWorld(def.I.g,def.I.p,side);
+  const viaW=def.via?anchorWorld(def.via.g,def.via.p,side):null;
+  const mat=muscleMat(); mat.color.setHex(def.color);
+  const mesh=new T.Mesh(new T.BufferGeometry(),mat);
+  mesh.userData.id=def.id;
+  scene.add(mesh);
+  const m={def,id:def.id,name:def.name,mesh,oW,iW,viaW,side,bulge:def.bulge||0.018,
+           bulgeDir:def.bulgeDir?new T.Vector3().fromArray(def.bulgeDir):null,restLen:1,visible:true};
+  muscles.push(m); return m;
+}
+MDEF.forEach(def=>{
+  if(def.single){ buildMuscle(def,'L'); if(def.mirrorX) buildMuscle({...def,_mir:true},'R'); }
+  else { buildMuscle(def,'L'); buildMuscle(def,'R'); }
+});
+
+// for single midline muscles flagged mirrorX we built an 'R' copy; their anchors mirror via side==='R'
+// (handled in anchorWorld). Group them under same id for list toggling.
+
+/* sciatic nerve (tube following pelvis→under piriformis→thigh→knee→leg) */
+function nerveAnchors(side){
+  const A=[
+    anchorWorld('spine',[0.035,1.05,-0.06],side),   // lumbosacral roots
+    anchorWorld('pelvis',[0.07,0.92,-0.055],side),  // under piriformis
+    anchorWorld('hipL',[0.10,0.70,-0.055],side),    // posterior thigh
+    anchorWorld('kneeL',[0.105,0.47,-0.055],side),  // behind knee
+    anchorWorld('kneeL',[0.105,0.30,-0.045],side)   // continues down (tibial/peroneal)
+  ];
+  return A;
+}
+const nerveMat=new T.MeshStandardMaterial({color:0xf2c14e,emissive:0x4a3a08,roughness:0.4,metalness:0.1});
+const nerves=[{anchors:nerveAnchors('L'),mesh:new T.Mesh(new T.BufferGeometry(),nerveMat)},
+              {anchors:nerveAnchors('R'),mesh:new T.Mesh(new T.BufferGeometry(),nerveMat)}];
+nerves.forEach(n=>scene.add(n.mesh));
+let nerveVisible=true;
+
+/* ---------------- per-frame geometry update ---------------- */
+const _wo=new T.Vector3(),_wi=new T.Vector3(),_wv=new T.Vector3(),_mid=new T.Vector3(),_tmp=new T.Vector3();
+let showActivation=true, muscleOpacity=0.78;
+function buildTube(mesh,pts,baseR,radScale){
+  const curve=new T.CatmullRomCurve3(pts);
+  const ng=new T.TubeGeometry(curve,Math.max(8,pts.length*8),baseR*radScale,8,false);
+  mesh.geometry.dispose(); mesh.geometry=ng;
+}
+function updateMuscle(m){
+  m.oW.getWorldPosition(_wo); m.iW.getWorldPosition(_wi);
+  let pts;
+  _mid.copy(_wo).add(_wi).multiplyScalar(0.5);
+  // bulge offset
+  let off=_tmp;
+  if(m.bulgeDir){ off.copy(m.bulgeDir); if(m.side==='R')off.x*=-1; off.normalize(); }
+  else { off.set(_mid.x,0,_mid.z).normalize(); } // push outward from vertical axis
+  const midB=_mid.clone().addScaledVector(off,m.bulge);
+  if(m.viaW){ m.viaW.getWorldPosition(_wv); pts=[_wo.clone(),_wv.clone(),midB,_wi.clone()]; }
+  else pts=[_wo.clone(),midB,_wi.clone()];
+  const len=_wo.distanceTo(_wi);
+  // activation: shortened relative to rest => contracted
+  const ratio=len/m.restLen;
+  const act=Math.max(0,Math.min(1,(1-ratio)/0.22)); // 0..1
+  const radScale=1+act*0.5;
+  buildTube(m.mesh,pts,m.bulge>0.02?0.016:0.014,radScale);
+  m.activation=act;
+  // shading
+  const mat=m.mesh.material; mat.opacity=m.selected?Math.min(1,muscleOpacity+0.18):muscleOpacity;
+  if(showActivation){
+    // blend base color toward warm + emissive glow with activation
+    mat.emissive.setRGB(act*0.55, act*0.22, 0.0);
+  } else mat.emissive.setRGB(0,0,0);
+  if(m.hover){ mat.emissive.r=Math.max(mat.emissive.r,0.15); mat.emissive.g=Math.max(mat.emissive.g,0.35); mat.emissive.b=Math.max(mat.emissive.b,0.4);}
+  if(m.selected){ mat.emissive.b=Math.max(mat.emissive.b,0.25); }
+}
+function updateNerve(n){
+  const pts=n.anchors.map(a=>a.getWorldPosition(new T.Vector3()));
+  buildTube(n.mesh,pts,0.006,1);
+}
+
+/* apply joint angles to kinematic groups */
+const d2r=Math.PI/180;
+function applyJoints(){
+  gSpine.rotation.set(-J.lumbarFlex*d2r,0,J.lumbarLat*d2r);
+  ['L','R'].forEach(s=>{
+    const useLimb = mirror || s===activeLeg || mirror===true;
+    // per-leg values: if not mirror, only activeLeg gets the joint values, other stays neutral
+    const f = (mirror||s===activeLeg)?J.hipFlex:0;
+    const ab= (mirror||s===activeLeg)?J.hipAbduct:0;
+    const ro= (mirror||s===activeLeg)?J.hipRot:0;
+    const kn= (mirror||s===activeLeg)?J.kneeFlex:0;
+    const an= (mirror||s===activeLeg)?J.ankle:0;
+    const sgn=s==='L'?1:-1;
+    gHip[s].rotation.set(-f*d2r, ro*d2r*sgn*-1, ab*d2r*sgn);
+    gKnee[s].rotation.set(kn*d2r,0,0);
+    gAnkle[s].rotation.set(-an*d2r,0,0);
+  });
+}
+
+/* compute rest lengths once at neutral */
+function computeRest(){
+  applyJoints(); root.updateMatrixWorld(true);
+  muscles.forEach(m=>{ m.oW.getWorldPosition(_wo); m.iW.getWorldPosition(_wi); m.restLen=_wo.distanceTo(_wi);});
+}
+
+/* ---------------- render loop ---------------- */
+let dirty=true; function markDirty(){dirty=true;}
+function frame(){
+  requestAnimationFrame(frame);
+  stepAnim();
+  if(!dirty && !animating) return;
+  applyJoints(); root.updateMatrixWorld(true);
+  muscles.forEach(updateMuscle);
+  nerves.forEach(updateNerve);
+  renderer.render(scene,camera);
+  updateAngles();
+  if(selected) refreshInfoState();
+  dirty=false;
+}
+
+/* ---------------- UI wiring ---------------- */
+function resize(){const w=vp.clientWidth,h=vp.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();markDirty();}
+window.addEventListener('resize',resize);
+
+// joint sliders
+const JOINTS=[
+  {k:'lumbarFlex',label:'Lumbar flex / extend'},
+  {k:'lumbarLat',label:'Lumbar lateral bend'},
+  {k:'hipFlex',label:'Hip flex / extend'},
+  {k:'hipAbduct',label:'Hip abduct / adduct'},
+  {k:'hipRot',label:'Hip rotation (ext/int)'},
+  {k:'kneeFlex',label:'Knee flexion'},
+  {k:'ankle',label:'Ankle dorsi / plantar'},
+];
+const jc=document.getElementById('jointCtls');
+const sliders={};
+JOINTS.forEach(j=>{
+  const wrap=document.createElement('div'); wrap.className='ctl';
+  wrap.innerHTML=`<label>${j.label} <span class="v" id="v_${j.k}">0°</span></label>`;
+  const r=document.createElement('input'); r.type='range'; r.min=LIM[j.k][0]; r.max=LIM[j.k][1]; r.step=1; r.value=0;
+  r.addEventListener('input',()=>{J[j.k]=+r.value;document.getElementById('v_'+j.k).textContent=Math.round(J[j.k])+'°';stopAnim();markDirty();});
+  wrap.appendChild(r); jc.appendChild(wrap); sliders[j.k]=r;
+});
+// mirror toggle
+const mw=document.createElement('label'); mw.className='mirror';
+mw.innerHTML=`<input type="checkbox" class="chk" checked> apply to both legs`;
+mw.querySelector('input').addEventListener('change',e=>{mirror=e.target.checked;markDirty();});
+jc.appendChild(mw);
+
+function syncSliders(){JOINTS.forEach(j=>{sliders[j.k].value=J[j.k];document.getElementById('v_'+j.k).textContent=Math.round(J[j.k])+'°';});}
+function updateAngles(){
+  const a=document.getElementById('angles');
+  a.innerHTML=JOINTS.map(j=>`${j.label.split(' ')[0]} ${j.label.includes('flex')?'':''}<span>${Math.round(J[j.k])}°</span>`).join('<br>');
+}
+
+/* movement explorer */
+const MOVES=[
+  {n:'Hip flexion',mus:['iliopsoas','rectusfem','tfl'],joint:'hipFlex',to:90},
+  {n:'Hip extension',mus:['glutemax','hamstrings'],joint:'hipFlex',to:-15},
+  {n:'Hip abduction',mus:['glutemed','tfl'],joint:'hipAbduct',to:40},
+  {n:'Hip adduction',mus:['adductors'],joint:'hipAbduct',to:-22},
+  {n:'Hip ext. rotation',mus:['piriformis','glutemax'],joint:'hipRot',to:40},
+  {n:'Knee extension',mus:['rectusfem','vastus'],joint:'kneeFlex',to:0,from:90},
+  {n:'Knee flexion',mus:['hamstrings','gastroc'],joint:'kneeFlex',to:120},
+  {n:'Plantarflexion',mus:['gastroc'],joint:'ankle',to:40},
+  {n:'Dorsiflexion',mus:['tibant'],joint:'ankle',to:-22},
+  {n:'Trunk flexion',mus:['rectusabd'],joint:'lumbarFlex',to:60},
+  {n:'Trunk extension',mus:['erector','ql'],joint:'lumbarFlex',to:-22},
+  {n:'Trunk lateral bend',mus:['ql','erector'],joint:'lumbarLat',to:32},
+];
+const movesEl=document.getElementById('moves');
+let activeMove=null;
+MOVES.forEach(mv=>{
+  const b=document.createElement('span'); b.className='mv'; b.textContent=mv.n;
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.mv').forEach(x=>x.classList.remove('active'));
+    if(activeMove===mv){activeMove=null;clearHighlight();return;}
+    activeMove=mv; b.classList.add('active');
+    highlightMuscles(mv.mus);
+    // animate the joint
+    if(mv.from!==undefined){ J[mv.joint]=mv.from; }
+    animateJoint(mv.joint, mv.to);
+    document.getElementById('moveHint').textContent='Driving: '+mv.n+' — '+mv.mus.map(id=>nameOf(id)).join(', ')+'.';
+  });
+  movesEl.appendChild(b);
+});
+function nameOf(id){const d=MDEF.find(x=>x.id===id);return d?d.name:id;}
+
+/* poses */
+const POSES=[
+  {n:'Neutral stance',sub:'all joints zeroed',set:{lumbarFlex:0,lumbarLat:0,hipFlex:0,hipAbduct:0,hipRot:0,kneeFlex:0,ankle:0},mirror:true},
+  {n:'Seated (90/90)',sub:'hips + knees flexed 90°',set:{hipFlex:90,kneeFlex:90,lumbarFlex:0,hipAbduct:0,hipRot:0,ankle:0,lumbarLat:0},mirror:true},
+  {n:'Forward bend',sub:'loaded lumbar flexion',set:{lumbarFlex:55,hipFlex:25,kneeFlex:0,hipAbduct:0,hipRot:0,ankle:0,lumbarLat:0},mirror:true,note:'erector'},
+  {n:'Straight-leg raise',sub:'sciatic nerve tension test',set:{hipFlex:70,kneeFlex:0,lumbarFlex:0,hipAbduct:0,hipRot:0,ankle:-10,lumbarLat:0},mirror:false,leg:'L',note:'hamstrings'},
+  {n:'Piriformis stretch',sub:'figure-4 position',set:{hipFlex:90,hipAbduct:-12,hipRot:-30,kneeFlex:90,lumbarFlex:0,ankle:0,lumbarLat:0},mirror:false,leg:'L',note:'piriformis'},
+];
+const posesEl=document.getElementById('poses');
+POSES.forEach(p=>{
+  const b=document.createElement('button'); b.className='btn';
+  b.innerHTML=`${p.n}<small>${p.sub}</small>`;
+  b.addEventListener('click',()=>{
+    stopAnim(); mirror=p.mirror; if(p.leg)activeLeg=p.leg;
+    mw.querySelector('input').checked=mirror;
+    Object.keys(p.set).forEach(k=>J[k]=p.set[k]);
+    syncSliders(); document.getElementById('poseName').textContent=p.n.toLowerCase();
+    if(p.note){ selectMuscle(p.note); }
+    markDirty();
+  });
+  posesEl.appendChild(b);
+});
+
+/* muscle list */
+const listEl=document.getElementById('muscleList');
+const listRows={};
+MDEF.forEach(def=>{
+  const row=document.createElement('div'); row.className='row muscle-row';
+  row.innerHTML=`<input type="checkbox" class="chk" checked><span class="sw" style="background:#${def.color.toString(16).padStart(6,'0')}"></span><span class="lbl">${def.name}</span>`;
+  const cb=row.querySelector('input');
+  cb.addEventListener('change',()=>{setMuscleVisible(def.id,cb.checked);markDirty();});
+  row.querySelector('.lbl').addEventListener('click',()=>selectMuscle(def.id));
+  row.querySelector('.sw').addEventListener('click',()=>selectMuscle(def.id));
+  listEl.appendChild(row); listRows[def.id]=row;
+});
+function setMuscleVisible(id,v){muscles.filter(m=>m.id===id).forEach(m=>{m.visible=v;m.mesh.visible=v;});}
+
+/* layer toggles */
+document.getElementById('tglBones').addEventListener('change',e=>{boneMeshes.forEach(b=>b.visible=e.target.checked);markDirty();});
+document.getElementById('tglNerve').addEventListener('change',e=>{nerveVisible=e.target.checked;nerves.forEach(n=>n.mesh.visible=nerveVisible);markDirty();});
+document.getElementById('tglActiv').addEventListener('change',e=>{showActivation=e.target.checked;markDirty();});
+const opEl=document.getElementById('opacity');
+opEl.addEventListener('input',()=>{muscleOpacity=+opEl.value;document.getElementById('opVal').textContent=(+opEl.value).toFixed(2);markDirty();});
+
+/* highlight helpers */
+function highlightMuscles(ids){
+  muscles.forEach(m=>{ const on=ids.includes(m.id); m.mesh.visible=on?true:(m.visible); m.dim=!on; });
+  // dim others by lowering opacity handled in update via .dim
+  muscles.forEach(m=>{ m.mesh.material.opacity = m.dim? muscleOpacity*0.12 : muscleOpacity; });
+  markDirty();
+}
+function clearHighlight(){muscles.forEach(m=>{m.dim=false;m.mesh.material.opacity=muscleOpacity;m.mesh.visible=m.visible;});document.getElementById('moveHint').textContent='Tap a movement: the muscles that drive it light up and the joint animates.';markDirty();}
+
+/* selection + info */
+let selected=null;
+function selectMuscle(id){
+  selected=id;
+  muscles.forEach(m=>m.selected=(m.id===id));
+  Object.values(listRows).forEach(r=>r.classList.remove('sel'));
+  if(listRows[id])listRows[id].classList.add('sel');
+  renderInfo(id); markDirty();
+  if(window.innerWidth<=880){document.getElementById('right').classList.add('open');}
+}
+function renderInfo(id){
+  const def=MDEF.find(d=>d.id===id); if(!def)return;
+  const p=document.getElementById('infoPanel');
+  p.innerHTML=`
+    <div class="name">${def.name}</div>
+    <div class="grp" style="color:#${def.color.toString(16).padStart(6,'0')}">${def.cgrp}</div>
+    <dl>
+      <dt>Action</dt><dd>${def.actions.join(' · ')}</dd>
+      <dt>Attachment</dt><dd>${def.desc}</dd>
+      <dt>State</dt><dd><span class="state" id="stateBadge">—</span></dd>
+    </dl>
+    ${def.clinical?`<div class="clinical"><b>Sciatica / low-back note.</b> ${def.clinical}</div>`:''}
+  `;
+}
+function refreshInfoState(){
+  const m=muscles.find(x=>x.id===selected); const badge=document.getElementById('stateBadge'); if(!m||!badge)return;
+  const a=m.activation||0;
+  let txt,bg;
+  if(a>0.55){txt=`Contracted ${Math.round(a*100)}%`;bg='rgba(224,99,63,.22)';}
+  else if(a>0.12){txt=`Shortening ${Math.round(a*100)}%`;bg='rgba(242,193,78,.18)';}
+  else { // check if stretched
+    m.oW.getWorldPosition(_wo);m.iW.getWorldPosition(_wi);
+    const r=_wo.distanceTo(_wi)/m.restLen;
+    if(r>1.06){txt=`Stretched ${Math.round((r-1)*100)}%`;bg='rgba(90,155,212,.2)';}
+    else{txt='Near resting length';bg='rgba(139,150,163,.15)';}
+  }
+  badge.textContent=txt; badge.style.background=bg;
+}
+
+/* raycast picking */
+const ray=new T.Raycaster(); const pointer=new T.Vector2(); const tip=document.getElementById('tip');
+function setPointer(e){const r=renderer.domElement.getBoundingClientRect();pointer.x=((e.clientX-r.left)/r.width)*2-1;pointer.y=-((e.clientY-r.top)/r.height)*2+1;return r;}
+renderer.domElement.addEventListener('pointermove',e=>{
+  const r=setPointer(e); ray.setFromCamera(pointer,camera);
+  const hits=ray.intersectObjects(muscles.filter(m=>m.visible).map(m=>m.mesh));
+  muscles.forEach(m=>m.hover=false);
+  if(hits.length){const id=hits[0].object.userData.id;muscles.filter(m=>m.id===id).forEach(m=>m.hover=true);
+    tip.style.display='block';tip.style.left=(e.clientX-r.left+12)+'px';tip.style.top=(e.clientY-r.top+12)+'px';tip.textContent=nameOf(id);
+    renderer.domElement.style.cursor='pointer';
+  } else {tip.style.display='none';renderer.domElement.style.cursor='grab';}
+  markDirty();
+});
+renderer.domElement.addEventListener('pointerdown',e=>{
+  if(e.button!==0||e.shiftKey)return; setPointer(e); ray.setFromCamera(pointer,camera);
+  const hits=ray.intersectObjects(muscles.filter(m=>m.visible).map(m=>m.mesh));
+  if(hits.length){selectMuscle(hits[0].object.userData.id);}
+});
+
+/* joint animation (for movement explorer) */
+let animating=false, animState=null;
+function animateJoint(key,to){
+  stopAnim();
+  animState={key,from:J[key],to,t:0,dur:42};
+  animating=true;
+}
+function stepAnim(){
+  if(!animating||!animState)return;
+  animState.t++; const k=Math.min(1,animState.t/animState.dur);
+  const e=k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2; // easeInOut
+  J[animState.key]=animState.from+(animState.to-animState.from)*e;
+  syncSliders();
+  if(k>=1){animating=false;}
+}
+function stopAnim(){animating=false;animState=null;}
+
+/* menu toggles (mobile) */
+document.getElementById('mLeft').addEventListener('click',()=>{document.getElementById('left').classList.toggle('open');document.getElementById('right').classList.remove('open');});
+document.getElementById('mRight').addEventListener('click',()=>{document.getElementById('right').classList.toggle('open');document.getElementById('left').classList.remove('open');});
+
+/* ---------------- init ---------------- */
+computeRest();
+applyCam(); resize(); updateAngles();
+frame();
+</script>
+</body>
+</html>
